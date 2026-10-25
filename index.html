@@ -1,0 +1,635 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>フォント合成メーカー</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f4f6fa;
+  --panel: #fff;
+  --ink: #202431;
+  --muted: #687084;
+  --line: #dce1eb;
+  --accent: #435ee8;
+  --accent-light: #edf0ff;
+  --danger: #b42318;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+header {
+  padding: 22px clamp(16px, 4vw, 42px);
+  color: white;
+  background: linear-gradient(120deg, #263a91, #596be8);
+}
+header h1 { margin: 0 0 7px; font-size: clamp(23px, 4vw, 34px); }
+header p { margin: 0; opacity: .9; }
+main {
+  width: min(1450px, 100%);
+  margin: auto;
+  padding: 20px;
+}
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 18px;
+  margin-bottom: 18px;
+  box-shadow: 0 4px 18px #25335b0b;
+}
+h2 { font-size: 19px; margin: 0 0 14px; }
+h3 { font-size: 15px; margin: 0 0 10px; }
+p, .help { color: var(--muted); line-height: 1.55; }
+.row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+label { font-size: 13px; font-weight: 700; }
+input, select, button {
+  font: inherit;
+  border-radius: 9px;
+}
+input, select {
+  min-width: 0;
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--ink);
+}
+input[type="file"] { padding: 9px; }
+button {
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--ink);
+  padding: 10px 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+button.primary { color: white; background: var(--accent); border-color: var(--accent); }
+button.danger { color: var(--danger); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 12px; }
+.status {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--accent-light);
+  margin: 14px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.status.error { color: var(--danger); background: #fff0ee; }
+.font-summary { font-size: 13px; color: var(--muted); margin-top: 9px; }
+.preview-input { margin-bottom: 12px; }
+.glyph-area {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.glyph-panel { min-width: 0; }
+.glyph-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+.glyph-head strong { font-size: 15px; }
+.glyph-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+  gap: 6px;
+  max-height: 460px;
+  overflow: auto;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fafbfe;
+}
+.glyph {
+  min-width: 0;
+  min-height: 76px;
+  padding: 6px 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: white;
+  overflow: hidden;
+}
+.glyph .char {
+  font-size: 27px;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+}
+.glyph small {
+  font-size: 10px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.glyph.selected { background: var(--accent-light); border-color: var(--accent); }
+.selected-info {
+  min-height: 42px;
+  margin: 10px 0;
+  padding: 10px;
+  border-radius: 9px;
+  background: #f5f6fa;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.replacement-list { display: grid; gap: 8px; }
+.replacement {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+}
+.replacement .mapping { overflow-wrap: anywhere; }
+.preview-box {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  min-height: 100px;
+  font-size: 26px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.muted { color: var(--muted); font-size: 12px; }
+hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
+@media (max-width: 760px) {
+  main { padding: 12px; }
+  .row, .glyph-area { grid-template-columns: 1fr; }
+  .panel { padding: 14px; }
+  .glyph-grid { max-height: 340px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>フォント合成メーカー</h1>
+  <p>フォントAをベースに、フォントBの文字を補完・置換します。</p>
+</header>
+
+<main>
+  <section class="panel">
+    <h2>1. フォントを読み込む</h2>
+    <div class="row">
+      <div class="field">
+        <label for="fileA">フォントA（ベース）</label>
+        <input id="fileA" type="file" accept=".otf,.ttf,.ttc,.otc">
+        <div id="summaryA" class="font-summary">未読み込み</div>
+      </div>
+      <div class="field">
+        <label for="fileB">フォントB（補完・置換元）</label>
+        <input id="fileB" type="file" accept=".otf,.ttf,.ttc,.otc">
+        <div id="summaryB" class="font-summary">未読み込み</div>
+      </div>
+    </div>
+    <div class="actions">
+      <button id="inspectA">Aの文字一覧を読み込む</button>
+      <button id="inspectB">Bの文字一覧を読み込む</button>
+    </div>
+    <p class="help">この画面はサーバー上のFontForgeにフォントを渡して文字情報を読み込みます。ファイルを選んだだけでは、まだ合成されません。</p>
+  </section>
+
+  <section class="panel">
+    <h2>2. グリフを選択して置換を登録</h2>
+    <p class="help">左で置換先（フォントAの文字）、右で置換元（フォントBの文字）を選択し、「置換を登録」を押してください。文字コードが異なる文字同士でも登録できます。</p>
+
+    <div class="glyph-area">
+      <div class="glyph-panel">
+        <div class="glyph-head">
+          <strong>フォントA — 置換先</strong>
+          <span id="countA" class="muted">0文字</span>
+        </div>
+        <input id="searchA" class="preview-input" placeholder="Aを検索（文字・文字コード・名前）">
+        <div id="gridA" class="glyph-grid"></div>
+        <div id="selectedAInfo" class="selected-info">Aの文字を選択してください。</div>
+      </div>
+      <div class="glyph-panel">
+        <div class="glyph-head">
+          <strong>フォントB — 置換元</strong>
+          <span id="countB" class="muted">0文字</span>
+        </div>
+        <input id="searchB" class="preview-input" placeholder="Bを検索（文字・文字コード・名前）">
+        <div id="gridB" class="glyph-grid"></div>
+        <div id="selectedBInfo" class="selected-info">Bの文字を選択してください。</div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="addReplacement" class="primary">選択した文字で置換を登録</button>
+      <button id="clearSelection">選択を解除</button>
+    </div>
+    <hr>
+    <h3>手動置換リスト</h3>
+    <div id="replacementList" class="replacement-list">
+      <p>まだ置換は登録されていません。</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>3. フォント情報を編集</h2>
+    <div class="row">
+      <div class="field">
+        <label for="family">ファミリー名</label>
+        <input id="family" placeholder="例：My Gothic">
+      </div>
+      <div class="field">
+        <label for="displayName">表示名（フルネーム）</label>
+        <input id="displayName" placeholder="例：My Gothic Regular">
+      </div>
+      <div class="field">
+        <label for="style">スタイル名</label>
+        <input id="style" value="Regular" placeholder="Regular / Bold など">
+      </div>
+      <div class="field">
+        <label for="postScriptName">PostScript名</label>
+        <input id="postScriptName" placeholder="例：MyGothic-Regular">
+      </div>
+      <div class="field">
+        <label for="version">バージョン</label>
+        <input id="version" value="1.000" placeholder="1.000">
+      </div>
+      <div class="field">
+        <label for="format">出力形式</label>
+        <select id="format">
+          <option value="otf">OTF（OpenType）</option>
+          <option value="ttf">TTF（TrueType）</option>
+        </select>
+      </div>
+    </div>
+    <p class="help">フォントAの情報を読み込むと、編集欄の初期値に反映します。PostScript名には半角英数字とハイフンなどを使うのがおすすめです。</p>
+  </section>
+
+  <section class="panel">
+    <h2>4. 合成結果のプレビュー</h2>
+    <label for="previewText">プレビュー文字列</label>
+    <input id="previewText" value="あいうえお アイウエオ ABC abc 123 漢字 日本語フォント">
+    <div id="previewOutput" class="preview-box">フォントを読み込むと、ここにプレビューを表示します。</div>
+    <p class="muted">書き出し前は、A・Bを使った参考プレビューです。書き出し後は、生成されたフォント自体を使って表示します。</p>
+  </section>
+
+  <section class="panel">
+    <h2>5. 合成して書き出す</h2>
+    <p>フォントAに存在しないUnicode文字をBから補完し、その後、登録した手動置換を適用します。Aにある文字の幅は基本的に維持し、補完した文字にはB側の幅を使います。</p>
+    <div class="actions">
+      <button id="mergeButton" class="primary">フォントを合成して書き出す</button>
+    </div>
+    <div id="status" class="status" role="status">AとBを選択し、文字一覧を読み込んでください。</div>
+    <div id="downloadArea"></div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+
+let dataA = null;
+let dataB = null;
+let selectedA = null;
+let selectedB = null;
+let replacements = [];
+let faceA = null;
+let faceB = null;
+let faceMerged = null;
+let mergedObjectUrl = null;
+
+function status(message, isError = false) {
+  $("status").textContent = message;
+  $("status").classList.toggle("error", isError);
+}
+
+function cpLabel(cp) {
+  return "U+" + cp.toString(16).toUpperCase().padStart(4, "0");
+}
+
+function currentFile(id) {
+  return $(id).files[0] || null;
+}
+
+async function loadBrowserFont(file, family) {
+  const face = new FontFace(family, await file.arrayBuffer());
+  await face.load();
+  document.fonts.add(face);
+  return face;
+}
+
+async function inspect(which) {
+  const file = currentFile(which === "A" ? "fileA" : "fileB");
+  if (!file) {
+    status(`フォント${which}を選択してください。`, true);
+    return;
+  }
+
+  status(`フォント${which}を読み込み中…`);
+
+  try {
+    const form = new FormData();
+    form.append("font", file);
+
+    const response = await fetch("/api/inspect", {
+      method: "POST",
+      body: form
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.ok) {
+      throw new Error(result.error || "フォントを読み込めませんでした。");
+    }
+
+    if (which === "A") {
+      dataA = result.font;
+      faceA = await loadBrowserFont(file, "PreviewFontA");
+      $("summaryA").textContent =
+        `${file.name} — ${dataA.glyphs.length.toLocaleString()}文字 / ${dataA.family || "名前なし"}`;
+      $("countA").textContent = `${dataA.glyphs.length.toLocaleString()}文字`;
+      $("family").value = dataA.family || "";
+      $("displayName").value = dataA.displayName || "";
+      $("style").value = dataA.style || "Regular";
+      $("postScriptName").value = dataA.postScriptName || "";
+      $("version").value = dataA.version || "1.000";
+      selectedA = null;
+      renderGrid("A");
+    } else {
+      dataB = result.font;
+      faceB = await loadBrowserFont(file, "PreviewFontB");
+      $("summaryB").textContent =
+        `${file.name} — ${dataB.glyphs.length.toLocaleString()}文字 / ${dataB.family || "名前なし"}`;
+      $("countB").textContent = `${dataB.glyphs.length.toLocaleString()}文字`;
+      selectedB = null;
+      renderGrid("B");
+    }
+
+    renderPreview();
+    status(`フォント${which}を読み込みました。`);
+  } catch (error) {
+    status(`読み込みエラー：${error.message}`, true);
+  }
+}
+
+function searchMatches(glyph, query) {
+  if (!query) return true;
+  const q = query.toLowerCase();
+  return glyph.char.includes(query) ||
+    glyph.name.toLowerCase().includes(q) ||
+    cpLabel(glyph.cp).toLowerCase().includes(q) ||
+    glyph.cp.toString().includes(q);
+}
+
+function renderGrid(which) {
+  const data = which === "A" ? dataA : dataB;
+  const grid = $(which === "A" ? "gridA" : "gridB");
+  const query = $(which === "A" ? "searchA" : "searchB").value.trim();
+  grid.replaceChildren();
+
+  if (!data) {
+    grid.textContent = "フォントを読み込んでください。";
+    return;
+  }
+
+  const matches = data.glyphs.filter(g => searchMatches(g, query));
+  const maxVisible = 1500;
+  const visible = matches.slice(0, maxVisible);
+
+  if (visible.length === 0) {
+    grid.textContent = "一致する文字がありません。";
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+
+  for (const glyph of visible) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "glyph";
+
+    const selected = which === "A" ? selectedA : selectedB;
+    if (selected && selected.cp === glyph.cp) {
+      button.classList.add("selected");
+    }
+
+    const char = document.createElement("span");
+    char.className = "char";
+    char.textContent = glyph.char;
+    char.style.fontFamily = which === "A" ? "PreviewFontA" : "PreviewFontB";
+
+    const code = document.createElement("small");
+    code.textContent = cpLabel(glyph.cp);
+
+    button.append(char, code);
+    button.title = `${glyph.name} / ${cpLabel(glyph.cp)} / 幅 ${glyph.width}`;
+
+    button.addEventListener("click", () => {
+      if (which === "A") {
+        selectedA = glyph;
+        $("selectedAInfo").textContent =
+          `選択中：${glyph.char}　${cpLabel(glyph.cp)}　${glyph.name}　幅 ${glyph.width}`;
+      } else {
+        selectedB = glyph;
+        $("selectedBInfo").textContent =
+          `選択中：${glyph.char}　${cpLabel(glyph.cp)}　${glyph.name}　幅 ${glyph.width}`;
+      }
+      renderGrid(which);
+    });
+
+    fragment.appendChild(button);
+  }
+
+  grid.appendChild(fragment);
+
+  if (matches.length > maxVisible) {
+    const note = document.createElement("p");
+    note.className = "muted";
+    note.textContent =
+      `検索結果 ${matches.length.toLocaleString()}件中、先頭${maxVisible}件を表示しています。検索語を追加してください。`;
+    grid.appendChild(note);
+  }
+}
+
+function renderReplacements() {
+  const list = $("replacementList");
+  list.replaceChildren();
+
+  if (replacements.length === 0) {
+    list.textContent = "まだ置換は登録されていません。";
+    return;
+  }
+
+  replacements.forEach((item, index) => {
+    const row = document.createElement("div");
+    row.className = "replacement";
+
+    const mapping = document.createElement("div");
+    mapping.className = "mapping";
+    mapping.textContent =
+      `A: ${String.fromCodePoint(item.targetCp)} (${cpLabel(item.targetCp)}) ← ` +
+      `B: ${String.fromCodePoint(item.sourceCp)} (${cpLabel(item.sourceCp)})`;
+
+    const remove = document.createElement("button");
+    remove.className = "danger";
+    remove.textContent = "取り消す";
+    remove.addEventListener("click", () => {
+      replacements.splice(index, 1);
+      renderReplacements();
+    });
+
+    row.append(mapping, remove);
+    list.appendChild(row);
+  });
+}
+
+function renderPreview() {
+  const output = $("previewOutput");
+  output.textContent = $("previewText").value;
+
+  if (faceMerged) {
+    output.style.fontFamily = "PreviewMerged";
+  } else if (faceA) {
+    output.style.fontFamily = "PreviewFontA";
+  } else {
+    output.style.fontFamily = "sans-serif";
+  }
+}
+
+$("inspectA").addEventListener("click", () => inspect("A"));
+$("inspectB").addEventListener("click", () => inspect("B"));
+
+$("searchA").addEventListener("input", () => renderGrid("A"));
+$("searchB").addEventListener("input", () => renderGrid("B"));
+$("previewText").addEventListener("input", renderPreview);
+
+$("addReplacement").addEventListener("click", () => {
+  if (!dataA || !dataB) {
+    status("先にフォントAとBを読み込んでください。", true);
+    return;
+  }
+  if (!selectedA || !selectedB) {
+    status("Aの置換先とBの置換元を1文字ずつ選んでください。", true);
+    return;
+  }
+
+  replacements = replacements.filter(item => item.targetCp !== selectedA.cp);
+  replacements.push({
+    targetCp: selectedA.cp,
+    sourceCp: selectedB.cp
+  });
+
+  renderReplacements();
+  status(
+    `${selectedA.char} (${cpLabel(selectedA.cp)}) を ` +
+    `${selectedB.char} (${cpLabel(selectedB.cp)}) の字形に置き換える設定を登録しました。`
+  );
+});
+
+$("clearSelection").addEventListener("click", () => {
+  selectedA = null;
+  selectedB = null;
+  $("selectedAInfo").textContent = "Aの文字を選択してください。";
+  $("selectedBInfo").textContent = "Bの文字を選択してください。";
+  renderGrid("A");
+  renderGrid("B");
+});
+
+$("mergeButton").addEventListener("click", async () => {
+  const fileA = currentFile("fileA");
+  const fileB = currentFile("fileB");
+
+  if (!fileA || !fileB) {
+    status("フォントAとフォントBを両方選択してください。", true);
+    return;
+  }
+
+  const button = $("mergeButton");
+  button.disabled = true;
+  $("downloadArea").replaceChildren();
+  status("合成中です。文字数によっては時間がかかります…");
+
+  try {
+    const form = new FormData();
+    form.append("fontA", fileA);
+    form.append("fontB", fileB);
+    form.append("family", $("family").value);
+    form.append("displayName", $("displayName").value);
+    form.append("style", $("style").value);
+    form.append("postScriptName", $("postScriptName").value);
+    form.append("version", $("version").value);
+    form.append("format", $("format").value);
+    form.append("replacements", JSON.stringify(replacements));
+
+    const response = await fetch("/api/merge", {
+      method: "POST",
+      body: form
+    });
+
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}));
+      throw new Error(result.error || "フォントの合成に失敗しました。");
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+
+    if (mergedObjectUrl) URL.revokeObjectURL(mergedObjectUrl);
+    mergedObjectUrl = url;
+
+    const ext = $("format").value;
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `merged-font.${ext}`;
+    link.textContent = `合成フォントをダウンロード（.${ext}）`;
+    link.style.display = "inline-block";
+    link.style.marginTop = "12px";
+    link.style.fontWeight = "700";
+    $("downloadArea").appendChild(link);
+
+    // 生成されたフォントをブラウザーに読み込み、プレビューに反映する。
+    try {
+      faceMerged = await loadBrowserFont(
+        new File([blob], `merged-font.${ext}`),
+        "PreviewMerged"
+      );
+      renderPreview();
+    } catch (previewError) {
+      console.warn("生成フォントのブラウザープレビューに失敗しました。", previewError);
+    }
+
+    const added = response.headers.get("X-Glyphs-Added");
+    const replaced = response.headers.get("X-Glyphs-Replaced");
+    const total = response.headers.get("X-Glyphs-Total");
+
+    status(
+      `合成が完了しました。\n` +
+      `Bから自動補完：${added ?? "不明"}文字\n` +
+      `手動置換：${replaced ?? "不明"}件\n` +
+      `生成フォントのUnicode文字数：${total ?? "不明"}文字\n` +
+      `ダウンロードリンクから保存してください。`
+    );
+  } catch (error) {
+    status(`合成エラー：${error.message}`, true);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+renderReplacements();
+renderPreview();
+</script>
+</body>
+</html>
